@@ -1,0 +1,142 @@
+name: "hhnet"
+
+layer {
+  name: "data"
+  type: "ImageSegData"
+  top: "data"
+  top: "label"
+  transform_param {
+    mirror: true
+    crop_size: 288
+  }
+  image_data_param {
+    root_folder: "./data/idrid/"
+    source: "./data/train.lst"
+    batch_size: 1
+    shuffle: true
+    label_type: PIXEL #0, 1
+  }
+}
+
+# head
+layer { name: 'conv-1' bottom: 'data' top: 'conv-1' type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0}
+  convolution_param { num_output: 64 pad: 1  kernel_size: 3 weight_filler{type:"xavier"}} }
+layer { name: 'ReLU-1' bottom: 'conv-1' top: 'conv-1' type: "ReLU" }
+
+layer { name: 'conv0' bottom: 'conv-1' top: 'conv0' type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0}
+  convolution_param { num_output: 128 pad: 1  kernel_size: 3 weight_filler{type:"xavier"}} }
+layer { name: 'ReLU0' bottom: 'conv0' top: 'conv0' type: "ReLU" }
+
+layer { name: "drop1" type: "Dropout" bottom: "conv0" top: "conv0" dropout_param {dropout_ratio: 0.2}}
+
+# backbone
+layer { name: 'conv1' bottom: 'conv0' top: 'conv1' type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0}
+  convolution_param { num_output: 32 pad: 1  kernel_size: 3 dilation: 1 weight_filler{type:"xavier"}} }
+layer { name: 'ReLU1' bottom: 'conv1' top: 'conv1' type: "ReLU" }
+
+layer { name: 'conv2' bottom: 'conv1' top: 'conv2' type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0}
+  convolution_param { num_output: 32 pad: 3  kernel_size: 3 dilation: 3 weight_filler{type:"xavier"}} }
+layer { name: 'ReLU2' bottom: 'conv2' top: 'conv2' type: "ReLU" }
+
+layer { name: 'conv3' bottom: 'conv2' top: 'conv3' type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0}
+  convolution_param { num_output: 32 pad: 5  kernel_size: 3 dilation: 5 weight_filler{type:"xavier"}} }
+layer { name: 'ReLU3' bottom: 'conv3' top: 'conv3' type: "ReLU" }
+
+layer { name: 'conv4' bottom: 'conv3' top: 'conv4' type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0}
+  convolution_param { num_output: 32 pad: 7  kernel_size: 3 dilation: 7 weight_filler{type:"xavier"}} }
+layer { name: 'ReLU4' bottom: 'conv4' top: 'conv4' type: "ReLU" }
+
+layer { name: 'conv5' bottom: 'conv4' top: 'conv5' type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0}
+  convolution_param { num_output: 32 pad: 9  kernel_size: 3 dilation: 9 weight_filler{type:"xavier"}} }
+layer { name: 'ReLU5' bottom: 'conv5' top: 'conv5' type: "ReLU" }
+
+layer { name: 'conv6' bottom: 'conv5' top: 'conv6' type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0}
+  convolution_param { num_output: 32 pad: 11  kernel_size: 3 dilation: 11 weight_filler{type:"xavier"}} }
+layer { name: 'ReLU6' bottom: 'conv6' top: 'conv6' type: "ReLU" }
+
+
+# supervision loss 
+layer { name: 'b1_pred' type: "Convolution" bottom: 'conv6' top: 'b1_pred'
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0}
+  convolution_param { num_output: 1 kernel_size: 1 pad: 0 weight_filler {type:"xavier"} } }
+layer { type: "SigmoidCrossEntropyLoss" bottom: "b1_pred" bottom: "label" top: "loss1" loss_weight: 1 }
+#layer { type: "Sigmoid" bottom: "b1_pred" top: "b1_pred2" } layer { type: "DiceCoefLoss" bottom: "b1_pred2" bottom: "label" top: "loss1d" loss_weight: 1 }
+
+
+# FAM 1
+layer { name: 'fam1_concat' bottom: "conv1" bottom: "conv2" bottom: "conv3" bottom: "conv4" 
+	bottom: "conv5" bottom: "conv6" top: 'fam1_fusion' type: "Concat" concat_param{concat_dim:1}}
+layer { name: "fam1_drop" type: "Dropout" bottom: "fam1_fusion" top: "fam1_fusion" dropout_param {dropout_ratio: 0.2}}
+layer { name: 'fam1_conv' bottom: 'fam1_fusion' top: 'fam1_conv' type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0}
+  convolution_param { num_output: 32 pad: 1  kernel_size: 3 dilation: 1 weight_filler{type:"xavier"}} }
+layer { name: 'fam1_ReLU' bottom: 'fam1_conv' top: 'fam1_conv' type: "ReLU" }
+
+# backbone2
+layer { name: 'b2_conv1' bottom: 'fam1_conv' top: 'b2_conv1' type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0}
+  convolution_param { num_output: 32 pad: 1  kernel_size: 3 dilation: 1 weight_filler{type:"xavier"}} }
+layer { name: 'b2_ReLU1' bottom: 'b2_conv1' top: 'b2_conv1' type: "ReLU" }
+
+layer { name: 'b2_conv2' bottom: 'b2_conv1' top: 'b2_conv2' type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0}
+  convolution_param { num_output: 32 pad: 3  kernel_size: 3 dilation: 3 weight_filler{type:"xavier"}} }
+layer { name: 'b2_ReLU2' bottom: 'b2_conv2' top: 'b2_conv2' type: "ReLU" }
+
+layer { name: 'b2_conv3' bottom: 'b2_conv2' top: 'b2_conv3' type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0}
+  convolution_param { num_output: 32 pad: 5  kernel_size: 3 dilation: 5 weight_filler{type:"xavier"}} }
+layer { name: 'b2_ReLU3' bottom: 'b2_conv3' top: 'b2_conv3' type: "ReLU" }
+
+layer { name: 'b2_conv4' bottom: 'b2_conv3' top: 'b2_conv4' type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0}
+  convolution_param { num_output: 32 pad: 7  kernel_size: 3 dilation: 7 weight_filler{type:"xavier"}} }
+layer { name: 'b2_ReLU4' bottom: 'b2_conv4' top: 'b2_conv4' type: "ReLU" }
+
+## supervision loss
+layer { name: 'b2_pred' type: "Convolution" bottom: 'b2_conv4' top: 'b2_pred'
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0}
+  convolution_param { num_output: 1 kernel_size: 1 pad: 0 weight_filler {type:"xavier"} } }
+layer { type: "SigmoidCrossEntropyLoss" bottom: "b2_pred" bottom: "label" top: "loss2" loss_weight: 1 }
+#layer { type: "Sigmoid" bottom: "b2_pred" top: "b2_pred2" } layer { type: "DiceCoefLoss" bottom: "b2_pred2" bottom: "label" top: "loss2d" loss_weight: 1 }
+
+
+# FAM 2
+layer { name: 'fam2_concat' bottom: "b2_conv1" bottom: "b2_conv2" bottom: "b2_conv3" 
+	bottom: "b2_conv4" top: 'fam2_fusion' type: "Concat" concat_param{concat_dim:1}}
+layer { name: "fam2_drop" type: "Dropout" bottom: "fam2_fusion" top: "fam2_fusion" dropout_param {dropout_ratio: 0.2}}
+layer { name: 'fam2_conv' bottom: 'fam2_fusion' top: 'fam2_conv' type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0}
+  convolution_param { num_output: 32 pad: 1  kernel_size: 3 dilation: 1 weight_filler{type:"xavier"}} }
+layer { name: 'fam2_ReLU' bottom: 'fam2_conv' top: 'fam2_conv' type: "ReLU" }
+
+# backbone3
+layer { name: 'b3_conv1' bottom: 'fam2_conv' top: 'b3_conv1' type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0}
+  convolution_param { num_output: 32 pad: 1  kernel_size: 3 dilation: 1 weight_filler{type:"xavier"}} }
+layer { name: 'b3_ReLU1' bottom: 'b3_conv1' top: 'b3_conv1' type: "ReLU" }
+
+layer { name: 'b3_conv2' bottom: 'b3_conv1' top: 'b3_conv2' type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0}
+  convolution_param { num_output: 16 pad: 1  kernel_size: 3 dilation: 1 weight_filler{type:"xavier"}} }
+layer { name: 'b3_ReLU2' bottom: 'b3_conv2' top: 'b3_conv2' type: "ReLU" }
+
+layer { name: 'b3_conv3' bottom: 'b3_conv2' top: 'b3_conv3' type: "Convolution"
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0}
+  convolution_param { num_output: 16 pad: 1  kernel_size: 3 dilation: 1 weight_filler{type:"xavier"}} }
+layer { name: 'b3_ReLU3' bottom: 'b3_conv3' top: 'b3_conv3' type: "ReLU" }
+
+## supervision loss
+layer { name: 'b3_pred' type: "Convolution" bottom: 'b3_conv3' top: 'b3_pred'
+  param { lr_mult: 1 decay_mult: 1 } param { lr_mult: 2 decay_mult: 0}
+  convolution_param { num_output: 1 kernel_size: 1 pad: 0 weight_filler {type:"xavier"} } }
+layer { type: "SigmoidCrossEntropyLoss" bottom: "b3_pred" bottom: "label" top: "loss3" loss_weight: 1 }
+#layer { type: "Sigmoid" bottom: "b3_pred" top: "b3_pred2" } layer { type: "DiceCoefLoss" bottom: "b3_pred2" bottom: "label" top: "loss3d" loss_weight: 1 }

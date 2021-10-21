@@ -1,0 +1,5 @@
+#!/bin/bash
+
+CAFFE_ROOT=/home/guo/caffe
+
+$CAFFE_ROOT/build/tools/caffe train --solver solver.prototxt --gpu 0
